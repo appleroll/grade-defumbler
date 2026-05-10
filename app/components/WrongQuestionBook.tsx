@@ -277,16 +277,6 @@ export default function WrongQuestionBook() {
 
         {!activeTest ? (
           <div className="flex flex-col items-center justify-center min-h-screen text-gray-900 p-8 space-y-8 max-w-2xl mx-auto relative">
-            
-            {/* Cat with book icon */}
-            <img 
-              src="/icon.png" 
-              alt="ExamCramTurbo Icon" 
-              className="fixed bottom-8 right-8 w-32 h-32 object-contain z-10 opacity-90 transition-opacity hover:opacity-100" 
-            />
-            {/* Attribution Text below cat */}
-            <p className="fixed bottom-1 right-8 text-sm text-gray-500">Exam Defumbler is part of the ExamCramTurbo tool suite.</p>
-
             <div className="text-center space-y-9">
               <h1 className="text-5xl font-extrabold tracking-tight">Exam Defumbler</h1>
               <p className="text-xl text-gray-500">Fumbling your questions and making mistakes? This tool's designed to make you learn from your mistakes so they never happen again.</p>
