@@ -2,20 +2,10 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, EyeOff, Eye, Trash2, RotateCcw, RotateCw, Plus, Folder, FolderOpen, Settings, MousePointer2, SquarePen, Eraser } from 'lucide-react';
+import { Upload, Eye, EyeOff, Trash2, Plus, Folder, FolderOpen, MousePointer2, SquarePen, Eraser, MoreVertical, Edit2 } from 'lucide-react';
 import localforage from 'localforage';
-
-interface QuestionItem {
-  id: string;
-  sourceUrl: string; // Base64 data URL to allow persistence
-  blackouts: { x: number; y: number; w: number; h: number }[];
-}
-
-interface TestSet {
-  id: string;
-  name: string;
-  questions: QuestionItem[];
-}
+import { QuestionItem, TestSet } from './types';
+import { QuestionCard } from './QuestionCard';
 
 const fileToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -31,6 +21,11 @@ export default function WrongQuestionBook() {
   const [activeTestId, setActiveTestId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // New Global State
+  const [globalMode, setGlobalMode] = useState<'view' | 'add' | 'delete'>('view');
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [editingTestId, setEditingTestId] = useState<string | null>(null);
 
   // Initialize storage
   useEffect(() => {
@@ -42,11 +37,10 @@ export default function WrongQuestionBook() {
     localforage.getItem<TestSet[]>('wrong-questions-tests').then((savedTests) => {
       if (savedTests && savedTests.length > 0) {
         setTests(savedTests);
-        setActiveTestId(savedTests[0].id);
+        setActiveTestId(null);
       } else {
-        const defaultTest = { id: Math.random().toString(36).substr(2, 9), name: 'My First Test', questions: [] };
-        setTests([defaultTest]);
-        setActiveTestId(defaultTest.id);
+        setTests([]);
+        setActiveTestId(null);
       }
       setIsLoaded(true);
     }).catch(err => {
@@ -90,15 +84,12 @@ export default function WrongQuestionBook() {
     setTests(prev => prev.map(t => t.id === activeTestId ? { ...t, questions: newQuestions } : t));
   };
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!activeTestId) return;
-    setIsProcessing(true);
-    
+  const processFiles = async (files: File[]) => {
     let heic2any: any;
     try { heic2any = (await import('heic2any')).default; } catch (e) { console.error(e); }
 
-    const newQuestions = await Promise.all(
-      acceptedFiles.map(async (file) => {
+    return await Promise.all(
+      files.map(async (file) => {
         let processableBlob: Blob = file;
         const fileName = file.name.toLowerCase();
         
@@ -112,7 +103,6 @@ export default function WrongQuestionBook() {
         }
         
         const base64Url = await fileToBase64(processableBlob);
-        
         return {
           id: Math.random().toString(36).substr(2, 9),
           sourceUrl: base64Url,
@@ -120,15 +110,47 @@ export default function WrongQuestionBook() {
         };
       })
     );
+  };
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!activeTestId) return;
+    setIsProcessing(true);
+    const newQuestions = await processFiles(acceptedFiles);
+    setTests(prev => prev.map(t => t.id === activeTestId ? { ...t, questions: [...t.questions, ...newQuestions] } : t));
+    setIsProcessing(false);
+  }, [activeTestId]);
+
+  const handleInlineUpload = async (e: React.ChangeEvent<HTMLInputElement>, insertIndex: number) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !activeTestId) return;
+    setIsProcessing(true);
     
+    const newQuestions = await processFiles(files);
     setTests(prev => prev.map(t => {
       if (t.id === activeTestId) {
-        return { ...t, questions: [...t.questions, ...newQuestions] };
+        const arr = [...t.questions];
+        arr.splice(insertIndex, 0, ...newQuestions);
+        return { ...t, questions: arr };
       }
       return t;
     }));
+    
     setIsProcessing(false);
-  }, [activeTestId]);
+    e.target.value = '';
+  };
+
+  const moveQuestion = (idx: number, direction: 'up' | 'down') => {
+    if (!activeTest) return;
+    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= activeTest.questions.length) return;
+    
+    const newQuestions = [...activeTest.questions];
+    const temp = newQuestions[idx];
+    newQuestions[idx] = newQuestions[newIdx];
+    newQuestions[newIdx] = temp;
+    
+    updateActiveTestQuestions(newQuestions);
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -146,9 +168,12 @@ export default function WrongQuestionBook() {
       {/* Sidebar for Tests */}
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-screen overflow-y-auto shadow-sm z-40">
         <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
-          <h2 className="font-bold tracking-tight text-xl flex items-center">
-            RedoQuestion
-          </h2>
+          <button 
+            onClick={() => setActiveTestId(null)}
+            className="font-bold tracking-tight text-xl flex items-center hover:text-gray-600 transition"
+          >
+            Exam Defumbler
+          </button>
           <button onClick={createNewTest} className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition" title="New Test">
             <Plus className="w-4 h-4" />
           </button>
@@ -158,37 +183,157 @@ export default function WrongQuestionBook() {
           {tests.map(test => (
             <div 
               key={test.id}
-              onClick={() => { setActiveTestId(test.id); }}
-              className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
+              onClick={() => { setActiveTestId(test.id); setMenuOpenId(null); setEditingTestId(null); }}
+              className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all relative ${
                 activeTestId === test.id ? 'bg-black text-white shadow-md' : 'hover:bg-gray-100 text-gray-700'
               }`}
             >
-              <div className="flex items-center space-x-3 overflow-hidden">
+              <div className="flex items-center space-x-3 overflow-hidden flex-1">
                 {activeTestId === test.id ? <FolderOpen className="w-4 h-4 shrink-0 transition" /> : <Folder className="w-4 h-4 shrink-0 transition" />}
-                <input 
-                  type="text" 
-                  value={test.name}
-                  onChange={(e) => renameTest(test.id, e.target.value)}
-                  className={`bg-transparent border-none outline-none font-medium truncate w-full transition ${activeTestId === test.id ? 'text-white' : 'text-gray-900'}`}
-                  onClick={(e) => e.stopPropagation()}
-                />
+                {editingTestId === test.id ? (
+                  <input 
+                    type="text" 
+                    value={test.name}
+                    autoFocus
+                    onBlur={() => setEditingTestId(null)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setEditingTestId(null); }}
+                    onChange={(e) => renameTest(test.id, e.target.value)}
+                    className={`bg-transparent border-none outline-none font-medium truncate w-full transition ${activeTestId === test.id ? 'text-white' : 'text-gray-900'}`}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className={`font-medium truncate w-full transition select-none ${activeTestId === test.id ? 'text-white' : 'text-gray-900'}`}>
+                    {test.name}
+                  </span>
+                )}
               </div>
-              <button 
-                onClick={(e) => deleteTest(test.id, e)}
-                className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity ${activeTestId === test.id ? 'hover:bg-white/20' : 'hover:bg-gray-200 hover:text-red-500'}`}
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
+              <div className="relative flex-shrink-0 ml-2">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpenId(menuOpenId === test.id ? null : test.id);
+                  }}
+                  className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity ${activeTestId === test.id ? 'hover:bg-white/20' : 'hover:bg-gray-200'}`}
+                  title="Test Settings"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                
+                {menuOpenId === test.id && (
+                  <div className="absolute right-0 mt-2 w-36 bg-white border border-gray-200 shadow-xl rounded-lg py-1 z-50 overflow-hidden">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTestId(test.id);
+                        setMenuOpenId(null);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2 text-gray-500" /> Rename
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteTest(test.id, e);
+                        setMenuOpenId(null);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center transition-colors border-t border-gray-100"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2 text-red-500" /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 ml-64 min-h-screen">
+      <div className="flex-1 ml-64 min-h-screen relative">
+        {/* Global Floating Toolbar */}
+        {activeTest && activeTest.questions.length > 0 && (
+          <div className="fixed bottom-8 left-1/2 ml-32 -translate-x-1/2 bg-gray-900/90 backdrop-blur-md rounded-full shadow-2xl px-2 py-2 flex items-center space-x-1 border border-gray-700 z-50">
+            <button 
+              onClick={() => setGlobalMode('view')} 
+              className={`px-4 py-2 rounded-full text-sm font-medium flex items-center transition ${globalMode === 'view' ? 'bg-white text-black shadow-sm' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
+            >
+              <MousePointer2 className="w-4 h-4 mr-2" /> View
+            </button>
+            <button 
+              onClick={() => setGlobalMode('add')} 
+              className={`px-4 py-2 rounded-full text-sm font-medium flex items-center transition ${globalMode === 'add' ? 'bg-white text-black shadow-sm' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
+            >
+              <SquarePen className="w-4 h-4 mr-2" /> Blackout
+            </button>
+            <button 
+              onClick={() => setGlobalMode('delete')} 
+              className={`px-4 py-2 rounded-full text-sm font-medium flex items-center transition ${globalMode === 'delete' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
+            >
+              <Eraser className="w-4 h-4 mr-2" /> Erase
+            </button>
+          </div>
+        )}
+
         {!activeTest ? (
-          <div className="h-full flex items-center justify-center text-gray-400">
-            Select or create a test to start
+          <div className="flex flex-col items-center justify-center min-h-screen text-gray-900 p-8 space-y-8 max-w-2xl mx-auto relative">
+            
+            {/* Cat with book icon */}
+            <img 
+              src="/icon.png" 
+              alt="ExamCramTurbo Icon" 
+              className="fixed bottom-8 right-8 w-32 h-32 object-contain z-10 opacity-90 transition-opacity hover:opacity-100" 
+            />
+            {/* Attribution Text below cat */}
+            <p className="fixed bottom-1 right-8 text-sm text-gray-500">Exam Defumbler is part of the ExamCramTurbo tool suite.</p>
+
+            <div className="text-center space-y-9">
+              <h1 className="text-5xl font-extrabold tracking-tight">Exam Defumbler</h1>
+              <p className="text-xl text-gray-500">Fumbling your questions and making mistakes? This tool's designed to make you learn from your mistakes so they never happen again.</p>
+            </div>
+            
+            <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6">
+              <h2 className="text-2xl font-bold text-gray-800 border-b border-gray-100 pb-4">How to Use</h2>
+              <div className="space-y-6">
+                <div className="flex items-start">
+                  <div className="bg-gray-100 p-3 rounded-xl mr-4"><Folder className="w-6 h-6 text-gray-700" /></div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">1. Review Your Questions</h3>
+                    <p className="text-gray-600">Mark down what you did wrong and the write answer on the test paper.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="bg-gray-100 p-3 rounded-xl mr-4"><Upload className="w-6 h-6 text-gray-700" /></div>
+                                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">2. Upload Tests</h3>
+                    <p className="text-gray-600">Create a new test and upload images of your test papers. Don't worry, your mistakes stay on your laptop :)</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="bg-gray-100 p-3 rounded-xl mr-4"><SquarePen className="w-6 h-6 text-gray-700" /></div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">2. Blackout Answers</h3>
+                    <p className="text-gray-600">Select "Blackout" from the bottom toolbar and drag over answers or notes to hide them.</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="bg-gray-100 p-3 rounded-xl mr-4"><Eye className="w-6 h-6 text-gray-700" /></div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-lg">3. Redo the questions</h3>
+                    <p className="text-gray-600">Redo the questions and click "reveal answers". Repeat until you master them.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-6 flex justify-center border-t border-gray-100">
+                <button 
+                  onClick={createNewTest}
+                  className="bg-black text-white px-8 py-4 rounded-full font-medium hover:bg-gray-800 transition flex items-center shadow-md hover:shadow-lg"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Create Your First Test
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="w-full flex flex-col pb-32">
@@ -196,13 +341,13 @@ export default function WrongQuestionBook() {
               <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center">
                 {activeTest.name}
                 <span className="ml-4 text-sm font-normal text-gray-500 px-3 py-1 bg-gray-100 rounded-full">
-                  {activeTest.questions.length} Questions
+                  {activeTest.questions.length} Images
                 </span>
               </h1>
             </div>
 
             {activeTest.questions.length === 0 ? (
-               <div className="p-8 max-w-5xl mx-auto space-y-8 mt-12 w-full">
+               <div className="p-8 w-full mx-auto space-y-8 mt-12">
                  <div 
                    {...getRootProps()} 
                    className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-colors ${
@@ -212,214 +357,58 @@ export default function WrongQuestionBook() {
                    <input {...getInputProps()} />
                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-6" />
                    <p className="text-xl font-medium text-gray-800">
-                     {isProcessing ? 'Saving files to browser...' : 'Drag & drop photos here'}
+                     {isProcessing ? 'Processing files...' : 'Drag & drop photos here'}
                    </p>
                  </div>
                </div>
             ) : (
-              <div 
-                 {...getRootProps()} 
-                 className={`w-full max-w-5xl mx-auto mt-8 border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
-                   isDragActive ? 'border-black bg-gray-100' : 'border-gray-300 hover:border-black/50'
-                 } ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}
-               >
-                 <input {...getInputProps()} />
-                 <p className="text-sm font-medium text-gray-600 flex items-center justify-center">
-                    <Plus className="w-4 h-4 mr-2" />
-                   {isProcessing ? 'Saving files...' : 'Add more photos'}
-                 </p>
-               </div>
-            )}
+              <div className="w-full flex flex-col mx-auto space-y-6 mt-8 p-4 px-8">
+                {activeTest.questions.map((q, i) => (
+                  <React.Fragment key={q.id}>
+                    {/* Add Image Between Dropzone/Button */}
+                    {i > 0 && (
+                       <div className="w-full flex justify-center py-1 opacity-0 hover:opacity-100 transition-opacity duration-300">
+                         <label className="cursor-pointer bg-white shadow-sm border border-gray-200 hover:bg-gray-50 rounded-full px-4 py-2 flex items-center text-sm text-gray-600 font-medium transition-colors">
+                           <Plus className="w-4 h-4 mr-2" /> Add image between
+                           <input type="file" multiple accept="image/*,.heic,.heif" className="hidden" onChange={(e) => handleInlineUpload(e, i)} />
+                         </label>
+                       </div>
+                    )}
 
-            <div className="w-full flex flex-col space-y-8 mt-8 p-4">
-              {activeTest.questions.map((q) => (
-                <QuestionCard 
-                  key={q.id} 
-                  item={q} 
-                  onRemove={() => updateActiveTestQuestions(activeTest.questions.filter(item => item.id !== q.id))}
-                  onUpdate={(updatedQuestion) => {
-                    updateActiveTestQuestions(activeTest.questions.map(item => item.id === q.id ? updatedQuestion : item));
-                  }}
-                />
-              ))}
-            </div>
+                    <QuestionCard 
+                      item={q} 
+                      mode={globalMode}
+                      isFirst={i === 0}
+                      isLast={i === activeTest.questions.length - 1}
+                      onMoveUp={() => moveQuestion(i, 'up')}
+                      onMoveDown={() => moveQuestion(i, 'down')}
+                      onRemove={() => updateActiveTestQuestions(activeTest.questions.filter(item => item.id !== q.id))}
+                      onUpdate={(updatedQuestion) => {
+                        updateActiveTestQuestions(activeTest.questions.map(item => item.id === q.id ? updatedQuestion : item));
+                      }}
+                    />
+                  </React.Fragment>
+                ))}
+
+                {/* Final Add to Bottom Section */}
+                <div className="pt-8">
+                  <div 
+                     {...getRootProps()} 
+                     className={`w-full border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
+                       isDragActive ? 'border-black bg-gray-100' : 'border-gray-300 hover:border-black/50'
+                     } ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}
+                   >
+                     <input {...getInputProps()} />
+                     <p className="text-sm font-medium text-gray-600 flex items-center justify-center">
+                        <Plus className="w-4 h-4 mr-2" />
+                       {isProcessing ? 'Processing files...' : 'Add more photos at bottom'}
+                     </p>
+                   </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function QuestionCard({ item, onRemove, onUpdate }: { item: QuestionItem; onRemove: () => void, onUpdate: (q: QuestionItem) => void }) {
-  const [mode, setMode] = useState<'view' | 'add' | 'delete'>('view');
-  const [revealAnswer, setRevealAnswer] = useState(false);
-
-  const handleRotate = (angle: number) => {
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      
-      const rads = (angle * Math.PI) / 180;
-      if (Math.abs(angle) === 90 || Math.abs(angle) === 270) {
-        canvas.width = img.height;
-        canvas.height = img.width;
-      } else {
-        canvas.width = img.width;
-        canvas.height = img.height;
-      }
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(rads);
-      ctx.drawImage(img, -img.width / 2, -img.height / 2);
-      
-      onUpdate({ ...item, sourceUrl: canvas.toDataURL("image/jpeg", 0.90), blackouts: [] });
-    };
-    img.src = item.sourceUrl;
-  };
-
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentBox, setCurrentBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (mode === 'view' || revealAnswer) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setIsDrawing(true);
-    setCurrentBox({ x, y, w: 0, h: 0 });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDrawing || !currentBox || mode === 'view') return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setCurrentBox({
-      ...currentBox,
-      w: x - currentBox.x,
-      h: y - currentBox.y,
-    });
-  };
-
-  const handleMouseUp = () => {
-    if (!isDrawing || mode === 'view') return;
-    setIsDrawing(false);
-    
-    if (currentBox) {
-      const w = Math.abs(currentBox.w);
-      const h = Math.abs(currentBox.h);
-      const x = currentBox.w < 0 ? currentBox.x + currentBox.w : currentBox.x;
-      const y = currentBox.h < 0 ? currentBox.y + currentBox.h : currentBox.y;
-
-      if (mode === 'add' && w > 0.5 && h > 0.5) {
-        onUpdate({ ...item, blackouts: [...item.blackouts, { x, y, w, h }] });
-      } else if (mode === 'delete') {
-        const rw = w < 0.2 ? 0.2 : w;
-        const rh = h < 0.2 ? 0.2 : h;
-        const sel = { x, y, w: rw, h: rh };
-        
-        const remaining = item.blackouts.filter(box => {
-          // true if NO intersection
-          return (sel.x > box.x + box.w || sel.x + sel.w < box.x || sel.y > box.y + box.h || sel.y + sel.h < box.y);
-        });
-        
-        if (remaining.length !== item.blackouts.length) {
-          onUpdate({ ...item, blackouts: remaining });
-        }
-      }
-    }
-    setCurrentBox(null);
-  };
-
-  return (
-    <div 
-      data-id={item.id}
-      className="question-card-wrapper w-full bg-white flex flex-col relative rounded-lg transition-all duration-200 border border-gray-200 shadow-sm hover:shadow-md"
-    >
-      <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex flex-wrap items-center gap-4 justify-between w-full rounded-t-lg">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <button onClick={() => handleRotate(-90)} className="p-2 hover:bg-white rounded hover:shadow-sm text-gray-700 transition" title="Rotate Left"><RotateCcw className="w-4 h-4" /></button>
-            <button onClick={() => handleRotate(90)} className="p-2 hover:bg-white rounded hover:shadow-sm text-gray-700 transition" title="Rotate Right"><RotateCw className="w-4 h-4" /></button>
-          </div>
-
-          <div className="h-6 w-px bg-gray-300"></div>
-
-          <div className="flex bg-gray-100 rounded-lg p-1 space-x-1">
-            <button 
-              onClick={() => setMode('view')} 
-              className={`p-2 rounded text-sm font-medium flex items-center transition ${mode === 'view' ? 'bg-white shadow text-black' : 'text-gray-600 hover:text-black'}`}
-              title="View Mode"
-            >
-              <MousePointer2 className="w-4 h-4 mr-2" /> View
-            </button>
-            <button 
-              onClick={() => setMode('add')} 
-              className={`p-2 rounded text-sm font-medium flex items-center transition ${mode === 'add' ? 'bg-white shadow text-black' : 'text-gray-600 hover:text-black'}`}
-              title="Draw Blackout"
-            >
-              <SquarePen className="w-4 h-4 mr-2" /> Blackout
-            </button>
-            <button 
-              onClick={() => setMode('delete')} 
-              className={`p-2 rounded text-sm font-medium flex items-center transition ${mode === 'delete' ? 'bg-red-100 text-red-700 shadow' : 'text-gray-600 hover:text-red-600'}`}
-              title="Delete Blackout"
-            >
-              <Eraser className="w-4 h-4 mr-2" /> Erase
-            </button>
-          </div>
-
-          <div className="h-6 w-px bg-gray-300"></div>
-
-          <button 
-            onClick={() => setRevealAnswer(!revealAnswer)}
-            disabled={item.blackouts.length === 0}
-            className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              item.blackouts.length === 0 ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400' :
-              revealAnswer ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'text-white bg-black hover:bg-gray-800'
-            }`}
-            title="Toggle Reveal"
-          >
-            {revealAnswer ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-            {revealAnswer ? 'Hide Answers' : 'Reveal Answers'}
-          </button>
-        </div>
-
-        <button onClick={onRemove} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Remove Image"><Trash2 className="w-5 h-5" /></button>
-      </div>
-
-      <div className="w-full bg-gray-100 flex items-start justify-center rounded-b-lg overflow-hidden">
-        <div 
-          className={`relative w-full ${mode === 'add' && !revealAnswer ? 'cursor-crosshair' : mode === 'delete' && !revealAnswer ? 'cursor-crosshair' : 'cursor-default'}`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        >
-          <img src={item.sourceUrl} alt="Question" className="w-full h-auto block select-none" draggable="false" />
-          
-          {item.blackouts.map((box, i) => (
-            <div 
-              key={i}
-              className={`absolute bg-gray-900 transition-all duration-200 ${revealAnswer ? 'opacity-0 pointer-events-none' : 'opacity-100'} ${mode === 'delete' ? 'hover:bg-red-500/80 hover:ring-2 hover:ring-red-500' : ''}`}
-              style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
-            />
-          ))}
-
-          {isDrawing && currentBox && (
-            <div 
-              className={`absolute border pointer-events-none ${mode === 'add' ? 'bg-gray-900/60 border-gray-900' : 'bg-red-500/40 border-red-500'}`}
-              style={{
-                left: `${currentBox.w < 0 ? currentBox.x + currentBox.w : currentBox.x}%`,
-                top: `${currentBox.h < 0 ? currentBox.y + currentBox.h : currentBox.y}%`,
-                width: `${Math.abs(currentBox.w)}%`,
-                height: `${Math.abs(currentBox.h)}%`
-              }}
-            />
-          )}
-        </div>
       </div>
     </div>
   );
