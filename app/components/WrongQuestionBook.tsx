@@ -279,10 +279,9 @@ export default function WrongQuestionBook() {
           <div className="flex flex-col items-center justify-center min-h-screen text-gray-900 p-8 space-y-8 max-w-2xl mx-auto relative">
             <div className="text-center space-y-9">
               <h1 className="text-5xl font-extrabold tracking-tight">Exam Defumbler</h1>
-              <p className="text-xl text-gray-500">Fumbling your questions and making mistakes? This tool's designed to make you learn from your mistakes so they never happen again.</p>
             </div>
             
-            <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6">
+            <div className="w-full p-8 space-y-6">
               <h2 className="text-2xl font-bold text-gray-800 border-b border-gray-100 pb-4">How to Use</h2>
               <div className="space-y-6">
                 <div className="flex items-start">
