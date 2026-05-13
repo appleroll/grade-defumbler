@@ -34,7 +34,7 @@ export function Sidebar({ tests, activeTestId, onSelectTest, onCreateTest, onDel
           onClick={() => onSelectTest(null)}
           className="font-bold tracking-tight text-l flex items-center hover:text-gray-500 transition"
         >
-          <Image src="/icon.png" alt="GDF Logo" width={24} height={24} className="mr-2 object-cover rounded" />
+          <Image src="https://appleroll.github.io/grade-defumbler/icon.png" loading="eager" alt="GDF Logo" width={24} height={24} className="mr-2 object-cover rounded" />
           Grade Defumbler
         </button>
         <button onClick={onCreateTest} className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition" title="New Test">

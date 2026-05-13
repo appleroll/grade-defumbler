@@ -15,7 +15,7 @@ export function WelcomeScreen({ onCreateTest }: WelcomeScreenProps) {
     <div className="flex flex-col items-center justify-center min-h-screen text-gray-900 p-8 space-y-8 max-w-2xl mx-auto relative">
       <div className="text-center space-y-9">
         <h1 className="text-5xl font-extrabold tracking-tight flex items-center justify-center gap-4">
-          <Image src="/icon.png" alt="Grade Defumbler Cat" width={64} height={64} className="object-cover" />
+          <Image src="https://appleroll.github.io/grade-defumbler/icon.png" loading="eager" alt="Grade Defumbler Cat" width={64} height={64} className="object-cover" />
           Grade Defumbler
         </h1>
       </div>
