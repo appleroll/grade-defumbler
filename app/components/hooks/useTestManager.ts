@@ -36,18 +36,18 @@ export function useTestManager() {
     }
   }, [tests, isLoaded]);
 
-  // Derived state for the currently active test
+  // Derived state for the currently active set
   const activeTest = tests.find(t => t.id === activeTestId);
 
   /**
-   * Create a new empty test and set it as active
+   * Create a new empty set and set it as active
    */
   const createNewTest = () => {
-    let testName = prompt('Enter a name for the new test:', `New Test ${tests.length + 1}`);
+    let testName = prompt('Enter a name for the new set:', `New Set ${tests.length + 1}`);
     if (testName === null) return; // User cancelled
     const newTest: QuestionSet = {
       id: Math.random().toString(36).substr(2, 9),
-      name: testName.trim() === '' ? `Test ${tests.length + 1}` : testName.trim(),
+      name: testName.trim() === '' ? `Set ${tests.length + 1}` : testName.trim(),
       questions: []
     };
     setTests([...tests, newTest]);
@@ -55,8 +55,8 @@ export function useTestManager() {
   };
 
   /**
-   * Delete a test by ID. 
-   * If the active test is deleted, fallback to the first available test (if any).
+   * Delete a set by ID. 
+   * If the active set is deleted, fallback to the first available set (if any).
    */
   const deleteTest = (id: string) => {
     const filtered = tests.filter(t => t.id !== id);
@@ -65,14 +65,14 @@ export function useTestManager() {
   };
 
   /**
-   * Rename an existing test
+   * Rename an existing set
    */
   const renameTest = (id: string, newName: string) => {
     setTests(prev => prev.map(t => t.id === id ? { ...t, name: newName } : t));
   };
 
   /**
-   * Update the questions for the currently active test
+   * Update the questions for the currently active set
    */
   const updateActiveTestQuestions = (newQuestions: QuestionItem[]) => {
     setTests(prev => prev.map(t => t.id === activeTestId ? { ...t, questions: newQuestions } : t));

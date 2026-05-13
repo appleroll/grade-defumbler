@@ -7,7 +7,7 @@ interface WelcomeScreenProps {
 }
 
 /**
- * The initial welcome screen shown to the user when no test is selected.
+ * The initial welcome screen shown to the user when no set is selected.
  * Provides a brief tutorial on how to use Grade Defumbler
  */
 export function WelcomeScreen({ onCreateTest }: WelcomeScreenProps) {
@@ -27,21 +27,21 @@ export function WelcomeScreen({ onCreateTest }: WelcomeScreenProps) {
             <div className="p-3 mr-4"><Folder className="w-6 h-6 text-gray-700" /></div>
             <div>
               <h3 className="font-semibold text-gray-900 text-lg">1. Review Your Questions</h3>
-              <p className="text-gray-600">Mark down what you did wrong and the right answer on the test paper.</p>
+              <p className="text-gray-600">Mark down what you did wrong and the right answer on the paper.</p>
             </div>
           </div>
           <div className="flex items-start">
             <div className="p-3 mr-4"><Upload className="w-6 h-6 text-gray-700" /></div>
             <div>
               <h3 className="font-semibold text-gray-900 text-lg">2. Upload</h3>
-              <p className="text-gray-600">Create a new test and upload images of your questions. Don't worry, your mistakes stay on your laptop :)</p>
+              <p className="text-gray-600">Create a new set and upload images of your questions. Don't worry, your mistakes stay on your laptop :)</p>
             </div>
           </div>
           <div className="flex items-start">
             <div className="p-3 mr-4"><SquarePen className="w-6 h-6 text-gray-700" /></div>
             <div>
               <h3 className="font-semibold text-gray-900 text-lg">3. Blackout Answers</h3>
-              <p className="text-gray-600">Select "Blackout" and drag over answers or notes to hide them.</p>
+              <p className="text-gray-600">Select "Blackout" and drag over answers and notes to hide them.</p>
             </div>
           </div>
           <div className="flex items-start">
@@ -58,7 +58,7 @@ export function WelcomeScreen({ onCreateTest }: WelcomeScreenProps) {
             className="bg-black text-white px-8 py-4 rounded-full font-medium hover:bg-gray-800 transition flex items-center shadow-md hover:shadow-lg"
           >
             <Plus className="w-5 h-5 mr-2" />
-            Create a Test!
+            Create a Question Set
           </button>
         </div>
       </div>

@@ -10,7 +10,7 @@ import { FloatingToolbar, GlobalMode } from './ui/FloatingToolbar';
 
 /**
  * GradeDefumblerMain is the root client-side wrapper.
- * It ties together the sidebar, welcome screen, floating tools, and active test view,
+ * It ties together the sidebar, welcome screen, floating tools, and active set view,
  * delegating complex storage logic and image processing to external hooks.
  */
 export default function GradeDefumblerMain() {
@@ -49,19 +49,19 @@ export default function GradeDefumblerMain() {
       {/* Main Content Area */}
       <div className="flex-1 ml-64 min-h-screen relative">
         
-        {/* Render either the welcome instructions or the selected test feed */}
+        {/* Render either the welcome instructions or the selected set feed */}
         {!activeTest ? (
           <WelcomeScreen onCreateTest={createNewTest} />
         ) : (
           <>
             <ActiveTest 
-              test={activeTest}
+              set={activeTest}
               globalMode={globalMode}
               isProcessing={isProcessing}
               onQuestionsUpdate={updateActiveTestQuestions}
               onProcessFiles={processFiles}
             />
-            {/* Show floating toolbar only if the active test actually has images to edit */}
+            {/* Show floating toolbar only if the active set actually has images to edit */}
             {activeTest.questions.length > 0 && (
               <FloatingToolbar mode={globalMode} onModeChange={setGlobalMode} />
             )}

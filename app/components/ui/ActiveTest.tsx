@@ -6,7 +6,7 @@ import { QuestionCard } from '../QuestionCard';
 import { GlobalMode } from './FloatingToolbar';
 
 interface ActiveTestProps {
-  test: QuestionSet;
+  set: QuestionSet;
   globalMode: GlobalMode;
   isProcessing: boolean;
   onQuestionsUpdate: (newQuestions: QuestionItem[]) => void;
@@ -14,16 +14,16 @@ interface ActiveTestProps {
 }
 
 /**
- * Component representing the active selected test. It handles drag and drop uploading,
+ * Component representing the active selected set. It handles drag and drop uploading,
  * reordering questions, and inline insertions.
  */
-export function ActiveTest({ test, globalMode, isProcessing, onQuestionsUpdate, onProcessFiles }: ActiveTestProps) {
+export function ActiveTest({ set, globalMode, isProcessing, onQuestionsUpdate, onProcessFiles }: ActiveTestProps) {
   
   // Handles main dropzone logic at the bottom or empty state
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const newQuestions = await onProcessFiles(acceptedFiles);
-    onQuestionsUpdate([...test.questions, ...newQuestions]);
-  }, [test.questions, onProcessFiles, onQuestionsUpdate]);
+    onQuestionsUpdate([...set.questions, ...newQuestions]);
+  }, [set.questions, onProcessFiles, onQuestionsUpdate]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -40,7 +40,7 @@ export function ActiveTest({ test, globalMode, isProcessing, onQuestionsUpdate, 
     if (!files.length) return;
     
     const newQuestions = await onProcessFiles(files);
-    const updated = [...test.questions];
+    const updated = [...set.questions];
     updated.splice(insertIndex, 0, ...newQuestions);
     
     onQuestionsUpdate(updated);
@@ -50,9 +50,9 @@ export function ActiveTest({ test, globalMode, isProcessing, onQuestionsUpdate, 
   // Reordering handler
   const moveQuestion = (idx: number, direction: 'up' | 'down') => {
     const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= test.questions.length) return;
+    if (newIdx < 0 || newIdx >= set.questions.length) return;
     
-    const newQuestions = [...test.questions];
+    const newQuestions = [...set.questions];
     const temp = newQuestions[idx];
     newQuestions[idx] = newQuestions[newIdx];
     newQuestions[newIdx] = temp;
@@ -62,17 +62,17 @@ export function ActiveTest({ test, globalMode, isProcessing, onQuestionsUpdate, 
 
   return (
     <div className="w-full flex flex-col pb-32">
-      {/* Test Header */}
+      {/* Set Header */}
       <div className="w-full bg-white border-b border-gray-200 p-8 flex items-center justify-between shadow-sm sticky top-0 z-20">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center">
-          {test.name}
+          {set.name}
           <span className="ml-4 text-sm font-normal text-gray-500 px-3 py-1 bg-gray-100 rounded-full">
-            {test.questions.length} Images
+            {set.questions.length} Images
           </span>
         </h1>
       </div>
 
-      {test.questions.length === 0 ? (
+      {set.questions.length === 0 ? (
         // Empty State Dropzone
         <div className="p-8 w-full mx-auto space-y-8 mt-12">
           <div 
@@ -91,7 +91,7 @@ export function ActiveTest({ test, globalMode, isProcessing, onQuestionsUpdate, 
       ) : (
         // Cards Feed
         <div className="w-full flex flex-col mx-auto space-y-6 mt-8 p-4 px-8">
-          {test.questions.map((q, i) => (
+          {set.questions.map((q, i) => (
             <React.Fragment key={q.id}>
               {/* Insert Image Between Button */}
               {i > 0 && (
@@ -115,12 +115,12 @@ export function ActiveTest({ test, globalMode, isProcessing, onQuestionsUpdate, 
                 item={q} 
                 mode={globalMode}
                 isFirst={i === 0}
-                isLast={i === test.questions.length - 1}
+                isLast={i === set.questions.length - 1}
                 onMoveUp={() => moveQuestion(i, 'up')}
                 onMoveDown={() => moveQuestion(i, 'down')}
-                onRemove={() => onQuestionsUpdate(test.questions.filter(item => item.id !== q.id))}
+                onRemove={() => onQuestionsUpdate(set.questions.filter(item => item.id !== q.id))}
                 onUpdate={(updatedQuestion) => {
-                  onQuestionsUpdate(test.questions.map(item => item.id === q.id ? updatedQuestion : item));
+                  onQuestionsUpdate(set.questions.map(item => item.id === q.id ? updatedQuestion : item));
                 }}
               />
             </React.Fragment>
