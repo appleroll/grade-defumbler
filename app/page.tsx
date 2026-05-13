@@ -1,9 +1,9 @@
-import WrongQuestionBook from "./components/WrongQuestionBook";
+import GradeDefumblerMain from "./components/GradeDefumblerMain";
 
 export default function Home() {
   return (
     <main>
-      <WrongQuestionBook />
+      <GradeDefumblerMain />
     </main>
   );
 }

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Exam Defumbler",
-  description: "Exam Defumbler is a tool to help students redo their wrong answers and review mistakes they've made..",
+  title: "Grade Defumbler",
+  description: "Grade Defumbler is a tool to help students redo their wrong answers and review mistakes they've made..",
 };
 
 export default function RootLayout({

@@ -4,7 +4,7 @@ export interface QuestionItem {
   blackouts: { x: number; y: number; w: number; h: number }[];
 }
 
-export interface TestSet {
+export interface QuestionSet {
   id: string;
   name: string;
   questions: QuestionItem[];
